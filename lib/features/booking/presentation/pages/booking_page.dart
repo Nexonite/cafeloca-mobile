@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../cafe/data/cafe_dummy_data.dart';
 import '../../../cafe/domain/models/cafe_detail.dart';
+import '../../../cafe/presentation/providers/cafe_providers.dart';
+import '../../domain/models/booking.dart';
 
-class BookingPage extends StatefulWidget {
+class BookingPage extends ConsumerStatefulWidget {
   const BookingPage({super.key, required this.cafeId});
 
   final String cafeId;
 
   @override
-  State<BookingPage> createState() => _BookingPageState();
+  ConsumerState<BookingPage> createState() => _BookingPageState();
 }
 
-class _BookingPageState extends State<BookingPage> {
+class _BookingPageState extends ConsumerState<BookingPage> {
   final TextEditingController _notesController = TextEditingController();
 
   late final List<DateTime> _dates;
@@ -58,27 +60,119 @@ class _BookingPageState extends State<BookingPage> {
   }
 
   void _confirmBooking(CafeDetail cafe) {
-    final selectedDate = _dates[_selectedDateIndex];
-    final selectedTime = _times[_selectedTimeIndex];
+    final notes = _notesController.text.trim();
+
+    final booking = Booking(
+      cafeId: cafe.summary.id,
+      cafeName: cafe.summary.name,
+      date: _dates[_selectedDateIndex],
+      time: _times[_selectedTimeIndex],
+      guestCount: _guestCount,
+      notes: notes.isEmpty ? null : notes,
+    );
 
     context.pushReplacement(
-      AppRoutes.bookingSuccessPath(cafe.summary.id),
-      extra: {
-        'date': selectedDate,
-        'time': selectedTime,
-        'guests': _guestCount,
-      },
+      AppRoutes.bookingSuccessPath(booking.cafeId),
+      extra: booking,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final cafe = CafeDummyData.detailById(widget.cafeId);
+    final cafeAsync = ref.watch(cafeDetailProvider(widget.cafeId));
 
-    if (cafe == null) {
-      return const _BookingNotFoundPage();
-    }
+    return cafeAsync.when(
+      data: (cafe) {
+        if (cafe == null) {
+          return const _BookingNotFoundPage();
+        }
 
+        return _BookingContent(
+          cafe: cafe,
+          dates: _dates,
+          times: _times,
+          selectedDateIndex: _selectedDateIndex,
+          selectedTimeIndex: _selectedTimeIndex,
+          guestCount: _guestCount,
+          notesController: _notesController,
+          onDateSelected: (index) {
+            setState(() {
+              _selectedDateIndex = index;
+            });
+          },
+          onTimeSelected: (index) {
+            setState(() {
+              _selectedTimeIndex = index;
+            });
+          },
+          onGuestDecrease: () {
+            if (_guestCount <= 1) {
+              return;
+            }
+
+            setState(() {
+              _guestCount--;
+            });
+          },
+          onGuestIncrease: () {
+            if (_guestCount >= 10) {
+              return;
+            }
+
+            setState(() {
+              _guestCount++;
+            });
+          },
+          onConfirm: () {
+            _confirmBooking(cafe);
+          },
+        );
+      },
+      loading: () {
+        return const _BookingLoadingPage();
+      },
+      error: (error, stackTrace) {
+        return _BookingErrorPage(
+          onRetry: () {
+            ref.invalidate(cafeDetailProvider(widget.cafeId));
+          },
+        );
+      },
+    );
+  }
+}
+
+class _BookingContent extends StatelessWidget {
+  const _BookingContent({
+    required this.cafe,
+    required this.dates,
+    required this.times,
+    required this.selectedDateIndex,
+    required this.selectedTimeIndex,
+    required this.guestCount,
+    required this.notesController,
+    required this.onDateSelected,
+    required this.onTimeSelected,
+    required this.onGuestDecrease,
+    required this.onGuestIncrease,
+    required this.onConfirm,
+  });
+
+  final CafeDetail cafe;
+  final List<DateTime> dates;
+  final List<String> times;
+  final int selectedDateIndex;
+  final int selectedTimeIndex;
+  final int guestCount;
+  final TextEditingController notesController;
+  final ValueChanged<int> onDateSelected;
+  final ValueChanged<int> onTimeSelected;
+  final VoidCallback onGuestDecrease;
+  final VoidCallback onGuestIncrease;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -88,7 +182,11 @@ class _BookingPageState extends State<BookingPage> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           onPressed: () {
-            context.pop();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.cafeDetailPath(cafe.summary.id));
+            }
           },
           icon: const Icon(Icons.arrow_back_rounded),
           color: AppColors.textPrimary,
@@ -121,13 +219,9 @@ class _BookingPageState extends State<BookingPage> {
                     const SizedBox(height: 16),
 
                     _DateSelector(
-                      dates: _dates,
-                      selectedIndex: _selectedDateIndex,
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedDateIndex = index;
-                        });
-                      },
+                      dates: dates,
+                      selectedIndex: selectedDateIndex,
+                      onSelected: onDateSelected,
                     ),
 
                     const SizedBox(height: 34),
@@ -140,13 +234,9 @@ class _BookingPageState extends State<BookingPage> {
                     const SizedBox(height: 16),
 
                     _TimeSelector(
-                      times: _times,
-                      selectedIndex: _selectedTimeIndex,
-                      onSelected: (index) {
-                        setState(() {
-                          _selectedTimeIndex = index;
-                        });
-                      },
+                      times: times,
+                      selectedIndex: selectedTimeIndex,
+                      onSelected: onTimeSelected,
                     ),
 
                     const SizedBox(height: 34),
@@ -159,25 +249,9 @@ class _BookingPageState extends State<BookingPage> {
                     const SizedBox(height: 16),
 
                     _GuestSelector(
-                      guestCount: _guestCount,
-                      onDecrease: () {
-                        if (_guestCount <= 1) {
-                          return;
-                        }
-
-                        setState(() {
-                          _guestCount--;
-                        });
-                      },
-                      onIncrease: () {
-                        if (_guestCount >= 10) {
-                          return;
-                        }
-
-                        setState(() {
-                          _guestCount++;
-                        });
-                      },
+                      guestCount: guestCount,
+                      onDecrease: onGuestDecrease,
+                      onIncrease: onGuestIncrease,
                     ),
 
                     const SizedBox(height: 34),
@@ -189,25 +263,21 @@ class _BookingPageState extends State<BookingPage> {
 
                     const SizedBox(height: 14),
 
-                    _NotesField(controller: _notesController),
+                    _NotesField(controller: notesController),
 
                     const SizedBox(height: 34),
 
                     _BookingSummary(
-                      date: _dates[_selectedDateIndex],
-                      time: _times[_selectedTimeIndex],
-                      guestCount: _guestCount,
+                      date: dates[selectedDateIndex],
+                      time: times[selectedTimeIndex],
+                      guestCount: guestCount,
                     ),
                   ],
                 ),
               ),
             ),
 
-            _BottomAction(
-              onPressed: () {
-                _confirmBooking(cafe);
-              },
-            ),
+            _BottomAction(onPressed: onConfirm),
           ],
         ),
       ),
@@ -258,7 +328,9 @@ class _CafeSummary extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
+
               const SizedBox(height: 5),
+
               Text(
                 cafe.address,
                 maxLines: 1,
@@ -267,7 +339,9 @@ class _CafeSummary extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ),
+
               const SizedBox(height: 5),
+
               Row(
                 children: [
                   const Icon(
@@ -275,7 +349,9 @@ class _CafeSummary extends StatelessWidget {
                     size: 16,
                     color: AppColors.rating,
                   ),
+
                   const SizedBox(width: 4),
+
                   Text(
                     cafe.summary.rating.toStringAsFixed(1),
                     style: AppTypography.caption.copyWith(
@@ -283,6 +359,7 @@ class _CafeSummary extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+
                   Text(
                     '  •  ${cafe.summary.distance}',
                     style: AppTypography.caption.copyWith(
@@ -401,7 +478,9 @@ class _DateSelector extends StatelessWidget {
                           : AppColors.textSecondary,
                     ),
                   ),
+
                   const SizedBox(height: 5),
+
                   Text(
                     '${date.day}',
                     style: AppTypography.title.copyWith(
@@ -410,7 +489,9 @@ class _DateSelector extends StatelessWidget {
                           : AppColors.textPrimary,
                     ),
                   ),
+
                   const SizedBox(height: 2),
+
                   Text(
                     _months[date.month - 1],
                     style: AppTypography.tiny.copyWith(
@@ -744,6 +825,140 @@ class _BottomAction extends StatelessWidget {
   }
 }
 
+class _BookingLoadingPage extends StatelessWidget {
+  const _BookingLoadingPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+          color: AppColors.textPrimary,
+        ),
+        title: Text(
+          'Book a table',
+          style: AppTypography.title.copyWith(color: AppColors.textPrimary),
+        ),
+        centerTitle: true,
+      ),
+      body: const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.espresso,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookingErrorPage extends StatelessWidget {
+  const _BookingErrorPage({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+          color: AppColors.textPrimary,
+        ),
+        title: Text(
+          'Book a table',
+          style: AppTypography.title.copyWith(color: AppColors.textPrimary),
+        ),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Icon(
+                  Icons.wifi_off_rounded,
+                  size: 25,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              Text(
+                'Couldn\'t load café',
+                style: AppTypography.title.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                'Something went wrong while preparing your booking.',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              OutlinedButton(
+                onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BookingNotFoundPage extends StatelessWidget {
   const _BookingNotFoundPage();
 
@@ -756,15 +971,24 @@ class _BookingNotFoundPage extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () {
-            context.pop();
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
           },
           icon: const Icon(Icons.arrow_back_rounded),
+          color: AppColors.textPrimary,
         ),
       ),
       body: Center(
-        child: Text(
-          'Café not found.',
-          style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            'Café not found.',
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          ),
         ),
       ),
     );

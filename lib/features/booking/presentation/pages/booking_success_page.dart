@@ -4,21 +4,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../cafe/data/cafe_dummy_data.dart';
+import '../../domain/models/booking.dart';
 
 class BookingSuccessPage extends StatelessWidget {
-  const BookingSuccessPage({
-    super.key,
-    required this.cafeId,
-    this.date,
-    this.time,
-    this.guests,
-  });
+  const BookingSuccessPage({super.key, required this.booking});
 
-  final String cafeId;
-  final DateTime? date;
-  final String? time;
-  final int? guests;
+  final Booking booking;
 
   static const List<String> _months = [
     'January',
@@ -37,7 +28,7 @@ class BookingSuccessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cafe = CafeDummyData.detailById(cafeId);
+    final notes = booking.notes?.trim();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -76,54 +67,54 @@ class BookingSuccessPage extends StatelessWidget {
               const SizedBox(height: 9),
 
               Text(
-                cafe == null
-                    ? 'Your reservation has been confirmed.'
-                    : 'Your table at ${cafe.summary.name} has been reserved.',
+                'Your table at ${booking.cafeName} has been reserved.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
 
-              if (date != null || time != null || guests != null) ...[
-                const SizedBox(height: 30),
+              const SizedBox(height: 30),
 
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    children: [
-                      if (date != null)
-                        _SuccessInfoRow(
-                          icon: Icons.calendar_today_outlined,
-                          label:
-                              '${date!.day} ${_months[date!.month - 1]} ${date!.year}',
-                        ),
-
-                      if (date != null && time != null) const _InfoDivider(),
-
-                      if (time != null)
-                        _SuccessInfoRow(
-                          icon: Icons.schedule_outlined,
-                          label: time!,
-                        ),
-
-                      if (time != null && guests != null) const _InfoDivider(),
-
-                      if (guests != null)
-                        _SuccessInfoRow(
-                          icon: Icons.people_outline_rounded,
-                          label: '$guests ${guests == 1 ? 'guest' : 'guests'}',
-                        ),
-                    ],
-                  ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.border),
                 ),
-              ],
+                child: Column(
+                  children: [
+                    _SuccessInfoRow(
+                      icon: Icons.calendar_today_outlined,
+                      label:
+                          '${booking.date.day} ${_months[booking.date.month - 1]} ${booking.date.year}',
+                    ),
+
+                    const _InfoDivider(),
+
+                    _SuccessInfoRow(
+                      icon: Icons.schedule_outlined,
+                      label: booking.time,
+                    ),
+
+                    const _InfoDivider(),
+
+                    _SuccessInfoRow(
+                      icon: Icons.people_outline_rounded,
+                      label:
+                          '${booking.guestCount} ${booking.guestCount == 1 ? 'guest' : 'guests'}',
+                    ),
+
+                    if (notes != null && notes.isNotEmpty) ...[
+                      const _InfoDivider(),
+
+                      _SuccessInfoRow(icon: Icons.notes_rounded, label: notes),
+                    ],
+                  ],
+                ),
+              ),
 
               const Spacer(),
 
@@ -155,7 +146,7 @@ class BookingSuccessPage extends StatelessWidget {
 
               TextButton(
                 onPressed: () {
-                  context.go(AppRoutes.cafeDetailPath(cafeId));
+                  context.go(AppRoutes.cafeDetailPath(booking.cafeId));
                 },
                 child: Text(
                   'View café',
@@ -181,9 +172,12 @@ class _SuccessInfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 19, color: AppColors.textSecondary),
+
         const SizedBox(width: 12),
+
         Expanded(
           child: Text(
             label,

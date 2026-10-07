@@ -1,28 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../data/cafe_dummy_data.dart';
 import '../../domain/models/cafe_detail.dart';
+import '../providers/cafe_providers.dart';
 import '../widgets/cafe_facility_item.dart';
 import '../widgets/cafe_info_row.dart';
 import '../widgets/live_status_badge.dart';
 
-class CafeDetailPage extends StatelessWidget {
+class CafeDetailPage extends ConsumerWidget {
   const CafeDetailPage({super.key, required this.cafeId});
 
   final String cafeId;
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cafeAsync = ref.watch(cafeDetailProvider(cafeId));
+
+    return cafeAsync.when(
+      data: (cafe) {
+        if (cafe == null) {
+          return const _CafeNotFoundPage();
+        }
+
+        return _CafeDetailContent(cafe: cafe);
+      },
+      loading: () {
+        return const _CafeDetailLoadingPage();
+      },
+      error: (error, stackTrace) {
+        return _CafeDetailErrorPage(
+          onRetry: () {
+            ref.invalidate(cafeDetailProvider(cafeId));
+          },
+        );
+      },
+    );
+  }
+}
+
+class _CafeDetailContent extends StatelessWidget {
+  const _CafeDetailContent({required this.cafe});
+
+  final CafeDetail cafe;
+
+  @override
   Widget build(BuildContext context) {
-    final cafe = CafeDummyData.detailById(cafeId);
-
-    if (cafe == null) {
-      return const _CafeNotFoundPage();
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -639,6 +665,128 @@ class _SectionDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Divider(height: 1, thickness: 1, color: AppColors.divider);
+  }
+}
+
+class _CafeDetailLoadingPage extends StatelessWidget {
+  const _CafeDetailLoadingPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+        leading: IconButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+          color: AppColors.textPrimary,
+        ),
+      ),
+      body: const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.espresso,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CafeDetailErrorPage extends StatelessWidget {
+  const _CafeDetailErrorPage({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        surfaceTintColor: AppColors.background,
+        leading: IconButton(
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go(AppRoutes.home);
+            }
+          },
+          icon: const Icon(Icons.arrow_back_rounded),
+          color: AppColors.textPrimary,
+        ),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Icon(
+                  Icons.wifi_off_rounded,
+                  size: 25,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              Text(
+                'Couldn\'t load café',
+                style: AppTypography.title.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                'Something went wrong while loading this café.',
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              OutlinedButton(
+                onPressed: onRetry,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
