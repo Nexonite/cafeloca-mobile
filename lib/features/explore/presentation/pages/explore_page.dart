@@ -1,27 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../cafe/data/cafe_dummy_data.dart';
 import '../../../cafe/domain/models/cafe_summary.dart';
+import '../../../cafe/presentation/providers/cafe_providers.dart';
 import '../../../cafe/presentation/widgets/cafe_list_item.dart';
 
-class ExplorePage extends StatefulWidget {
+class ExplorePage extends ConsumerStatefulWidget {
   const ExplorePage({super.key});
 
   @override
-  State<ExplorePage> createState() => _ExplorePageState();
+  ConsumerState<ExplorePage> createState() => _ExplorePageState();
 }
 
-class _ExplorePageState extends State<ExplorePage> {
+class _ExplorePageState extends ConsumerState<ExplorePage> {
   final TextEditingController _searchController = TextEditingController();
 
   int _selectedCategory = 0;
   bool _showMap = false;
-
-  final List<CafeSummary> _cafes = CafeDummyData.cafes;
 
   static const List<_ExploreCategory> _categories = [
     _ExploreCategory(label: 'Nearby', icon: Icons.near_me_outlined),
@@ -32,25 +31,25 @@ class _ExplorePageState extends State<ExplorePage> {
     _ExploreCategory(label: '24 Hours', icon: Icons.schedule_rounded),
   ];
 
-  List<CafeSummary> get _filteredCafes {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<CafeSummary> _filterCafes(List<CafeSummary> cafes) {
     final query = _searchController.text.trim().toLowerCase();
 
     if (query.isEmpty) {
-      return _cafes;
+      return cafes;
     }
 
-    return _cafes.where((cafe) {
+    return cafes.where((cafe) {
       final name = cafe.name.toLowerCase();
       final category = cafe.category.toLowerCase();
 
       return name.contains(query) || category.contains(query);
     }).toList();
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   void _openCafe(CafeSummary cafe) {
@@ -59,7 +58,7 @@ class _ExplorePageState extends State<ExplorePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cafes = _filteredCafes;
+    final cafesAsync = ref.watch(cafesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -102,55 +101,86 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ),
 
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: _ResultHeader(
-                  resultCount: cafes.length,
-                  showMap: _showMap,
-                  onViewChanged: (showMap) {
-                    setState(() {
-                      _showMap = showMap;
-                    });
-                  },
-                ),
-              ),
+            ...cafesAsync.when(
+              data: (allCafes) {
+                final cafes = _filterCafes(allCafes);
+
+                return [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _ResultHeader(
+                        resultCount: cafes.length,
+                        showMap: _showMap,
+                        onViewChanged: (showMap) {
+                          setState(() {
+                            _showMap = showMap;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                  if (_showMap)
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                      sliver: SliverToBoxAdapter(
+                        child: _MapPlaceholder(
+                          cafes: cafes,
+                          onCafeTap: _openCafe,
+                        ),
+                      ),
+                    )
+                  else if (cafes.isEmpty)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _EmptySearch(),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final cafe = cafes[index];
+
+                          return CafeListItem(
+                            cafe: cafe,
+                            showDivider: index != cafes.length - 1,
+                            onTap: () {
+                              _openCafe(cafe);
+                            },
+                            onSaved: () {
+                              // TODO: Auth guard + favorite.
+                            },
+                          );
+                        }, childCount: cafes.length),
+                      ),
+                    ),
+                ];
+              },
+              loading: () {
+                return const [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _ExploreLoadingState(),
+                  ),
+                ];
+              },
+              error: (error, stackTrace) {
+                return [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _ExploreErrorState(
+                      onRetry: () {
+                        ref.invalidate(cafesProvider);
+                      },
+                    ),
+                  ),
+                ];
+              },
             ),
-
-            const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-            if (_showMap)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                sliver: SliverToBoxAdapter(
-                  child: _MapPlaceholder(cafes: cafes, onCafeTap: _openCafe),
-                ),
-              )
-            else if (cafes.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: _EmptySearch(),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final cafe = cafes[index];
-
-                    return CafeListItem(
-                      cafe: cafe,
-                      showDivider: index != cafes.length - 1,
-                      onTap: () {
-                        _openCafe(cafe);
-                      },
-                      onSaved: () {
-                        // TODO: Auth guard + favorite.
-                      },
-                    );
-                  }, childCount: cafes.length),
-                ),
-              ),
           ],
         ),
       ),
@@ -352,7 +382,6 @@ class _ResultHeader extends StatelessWidget {
             ],
           ),
         ),
-
         _ViewSwitcher(showMap: showMap, onChanged: onViewChanged),
       ],
     );
@@ -534,7 +563,9 @@ class _MapPlaceholder extends StatelessWidget {
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
+
                                 const SizedBox(height: 4),
+
                                 Text(
                                   '${cafes.first.rating.toStringAsFixed(1)}  •  ${cafes.first.distance}',
                                   style: AppTypography.caption.copyWith(
@@ -651,6 +682,89 @@ class _MapBackgroundPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
     return false;
+  }
+}
+
+class _ExploreLoadingState extends StatelessWidget {
+  const _ExploreLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 100),
+      child: Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.espresso,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ExploreErrorState extends StatelessWidget {
+  const _ExploreErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 50, 32, 100),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: const Icon(
+              Icons.wifi_off_rounded,
+              size: 25,
+              color: AppColors.textTertiary,
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          Text(
+            'Couldn\'t load cafés',
+            style: AppTypography.title.copyWith(color: AppColors.textPrimary),
+          ),
+
+          const SizedBox(height: 6),
+
+          Text(
+            'Something went wrong while loading the cafés.',
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+          ),
+
+          const SizedBox(height: 18),
+
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.textPrimary,
+              side: const BorderSide(color: AppColors.border),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Try again'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
