@@ -63,3 +63,6 @@ supabase/.temp/
 # IDE local settings
 .idea/
 .vscode/
+
+# Local environment
+/env/*.json
