@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/cafeloca_brand.dart';
 import '../../../../core/widgets/cafeloca_button.dart';
 import '../../../../core/widgets/cafeloca_text_field.dart';
+import '../providers/auth_provider.dart';
+import '../utils/auth_navigation.dart';
 
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+class RegisterPage extends ConsumerStatefulWidget {
+  const RegisterPage({super.key, this.from});
+
+  final String? from;
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
@@ -42,8 +46,26 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // TODO: Connect Register API.
-    context.go(AppRoutes.home);
+    final destination = AuthNavigation.destinationAfterAuth(widget.from);
+
+    ref
+        .read(authProvider.notifier)
+        .register(
+          name: _nameController.text.trim(),
+          email: _emailController.text.trim(),
+        );
+
+    if (!mounted) return;
+
+    context.go(destination);
+  }
+
+  void _openLogin() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AuthNavigation.loginPath(from: widget.from));
+    }
   }
 
   @override
@@ -60,13 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
-                    onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go(AppRoutes.login);
-                      }
-                    },
+                    onPressed: _openLogin,
                     icon: const Icon(
                       Icons.arrow_back_rounded,
                       size: 22,
@@ -76,7 +92,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -88,27 +103,21 @@ class _RegisterPageState extends State<RegisterPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const CafelocaBrand(size: CafelocaBrandSize.large),
-
                       const SizedBox(height: 44),
-
                       Text(
                         'Create your account.',
                         style: AppTypography.heading1.copyWith(
                           color: AppColors.textPrimary,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       Text(
                         'Save places, book cafés, and share your experience.',
                         style: AppTypography.body.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-
                       const SizedBox(height: 36),
-
                       CafelocaTextField(
                         label: 'Name',
                         hintText: 'Your name',
@@ -122,9 +131,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
-
                       CafelocaTextField(
                         label: 'Email',
                         hintText: 'you@example.com',
@@ -145,9 +152,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
-
                       CafelocaTextField(
                         label: 'Password',
                         hintText: 'At least 8 characters',
@@ -174,9 +179,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
-
                       CafelocaTextField(
                         label: 'Confirm password',
                         hintText: 'Repeat your password',
@@ -204,16 +207,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 32),
-
                       CafelocaButton(
                         label: 'Create account',
                         onPressed: _register,
                       ),
-
                       const SizedBox(height: 28),
-
                       Center(
                         child: Wrap(
                           alignment: WrapAlignment.center,
@@ -226,13 +225,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () {
-                                if (context.canPop()) {
-                                  context.pop();
-                                } else {
-                                  context.go(AppRoutes.login);
-                                }
-                              },
+                              onTap: _openLogin,
                               child: Text(
                                 'Sign in',
                                 style: AppTypography.body.copyWith(

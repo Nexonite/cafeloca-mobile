@@ -7,6 +7,8 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../cafe/domain/models/cafe_summary.dart';
 import '../../../cafe/presentation/providers/cafe_providers.dart';
 import '../../../cafe/presentation/widgets/cafe_list_item.dart';
+import '../../../saved/presentation/providers/saved_cafes_provider.dart';
+import '../../../saved/presentation/utils/favorite_action.dart';
 import '../widgets/explore_category_selector.dart';
 import '../widgets/explore_header.dart';
 import '../widgets/explore_map_placeholder.dart';
@@ -64,6 +66,7 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
   @override
   Widget build(BuildContext context) {
     final cafesAsync = ref.watch(cafesProvider);
+    final savedCafeIds = ref.watch(savedCafesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -146,12 +149,17 @@ class _ExplorePageState extends ConsumerState<ExplorePage> {
 
                           return CafeListItem(
                             cafe: cafe,
+                            isSaved: savedCafeIds.contains(cafe.id),
                             showDivider: index != cafes.length - 1,
                             onTap: () {
                               _openCafe(cafe);
                             },
                             onSaved: () {
-                              // TODO: Auth guard + favorite.
+                              FavoriteAction.toggle(
+                                context: context,
+                                ref: ref,
+                                cafeId: cafe.id,
+                              );
                             },
                           );
                         }, childCount: cafes.length),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/app_routes.dart';
@@ -7,15 +8,19 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/cafeloca_brand.dart';
 import '../../../../core/widgets/cafeloca_button.dart';
 import '../../../../core/widgets/cafeloca_text_field.dart';
+import '../providers/auth_provider.dart';
+import '../utils/auth_navigation.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class LoginPage extends ConsumerStatefulWidget {
+  const LoginPage({super.key, this.from});
+
+  final String? from;
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends ConsumerState<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _emailController = TextEditingController();
@@ -37,8 +42,25 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    // TODO: Connect authentication API.
-    context.go(AppRoutes.home);
+    final destination = AuthNavigation.destinationAfterAuth(widget.from);
+
+    ref.read(authProvider.notifier).signIn(email: _emailController.text.trim());
+
+    if (!mounted) return;
+
+    context.go(destination);
+  }
+
+  void _openRegister() {
+    context.push(AuthNavigation.registerPath(from: widget.from));
+  }
+
+  void _goBack() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(AppRoutes.welcome);
+    }
   }
 
   @override
@@ -48,16 +70,7 @@ class _LoginPageState extends State<LoginPage> {
       body: SafeArea(
         child: Column(
           children: [
-            _AuthTopBar(
-              onBack: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go(AppRoutes.welcome);
-                }
-              },
-            ),
-
+            _AuthTopBar(onBack: _goBack),
             Expanded(
               child: SingleChildScrollView(
                 keyboardDismissBehavior:
@@ -69,27 +82,21 @@ class _LoginPageState extends State<LoginPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const CafelocaBrand(size: CafelocaBrandSize.large),
-
                       const SizedBox(height: 44),
-
                       Text(
                         'Welcome back.',
                         style: AppTypography.heading1.copyWith(
                           color: AppColors.textPrimary,
                         ),
                       ),
-
                       const SizedBox(height: 8),
-
                       Text(
                         'Sign in to continue to Cafeloca.',
                         style: AppTypography.body.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
-
                       const SizedBox(height: 36),
-
                       CafelocaTextField(
                         label: 'Email',
                         hintText: 'you@example.com',
@@ -110,9 +117,7 @@ class _LoginPageState extends State<LoginPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 20),
-
                       CafelocaTextField(
                         label: 'Password',
                         hintText: 'Enter your password',
@@ -136,9 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                           return null;
                         },
                       ),
-
                       const SizedBox(height: 10),
-
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
@@ -156,13 +159,9 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
                       CafelocaButton(label: 'Sign in', onPressed: _login),
-
                       const SizedBox(height: 28),
-
                       Center(
                         child: Wrap(
                           alignment: WrapAlignment.center,
@@ -175,9 +174,7 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             GestureDetector(
-                              onTap: () {
-                                context.push(AppRoutes.register);
-                              },
+                              onTap: _openRegister,
                               child: Text(
                                 'Create account',
                                 style: AppTypography.body.copyWith(

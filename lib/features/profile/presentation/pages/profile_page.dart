@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/cafeloca_brand.dart';
 import '../../../../core/widgets/cafeloca_button.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/auth_guest_state.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -41,67 +44,110 @@ class ProfilePage extends StatelessWidget {
                 ),
               ),
 
-              const Spacer(),
-
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: const Icon(
-                        Icons.person_outline_rounded,
-                        size: 30,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Text(
-                      'You’re exploring as a guest',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.title.copyWith(
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 280),
-                      child: Text(
-                        'Sign in to save cafés, write reviews, and manage your bookings.',
-                        textAlign: TextAlign.center,
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    SizedBox(
-                      width: 220,
-                      child: CafelocaButton(
-                        label: 'Sign in',
-                        onPressed: () {
-                          context.push(AppRoutes.login);
+              Expanded(
+                child: authState.isGuest
+                    ? const AuthGuestState(
+                        icon: Icons.person_outline_rounded,
+                        title: 'You’re exploring as a guest',
+                        description: 'Sign in to save cafés, write reviews, and manage your bookings.',
+                      )
+                    : _AuthenticatedProfile(
+                        name: authState.name,
+                        email: authState.email,
+                        onSignOut: () {
+                          ref.read(authProvider.notifier).signOut();
                         },
                       ),
-                    ),
-                  ],
-                ),
               ),
-
-              const Spacer(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthenticatedProfile extends StatelessWidget {
+  const _AuthenticatedProfile({
+    required this.name,
+    required this.email,
+    required this.onSignOut,
+  });
+
+  final String? name;
+  final String? email;
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = name != null && name!.trim().isNotEmpty
+        ? name!
+        : 'Cafeloca Explorer';
+
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                size: 30,
+                color: AppColors.espresso,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            Text(
+              displayName,
+              textAlign: TextAlign.center,
+              style: AppTypography.title.copyWith(color: AppColors.textPrimary),
+            ),
+
+            if (email != null && email!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                email!,
+                textAlign: TextAlign.center,
+                style: AppTypography.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 14),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Text(
+                'Signed in',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.success,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+
+            SizedBox(
+              width: 220,
+              child: CafelocaButton(label: 'Sign out', onPressed: onSignOut),
+            ),
+          ],
         ),
       ),
     );

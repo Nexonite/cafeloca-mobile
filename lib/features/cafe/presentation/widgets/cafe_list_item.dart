@@ -11,16 +11,20 @@ class CafeListItem extends StatelessWidget {
     required this.cafe,
     this.onTap,
     this.onSaved,
+    this.isSaved,
     this.showDivider = true,
   });
 
   final CafeSummary cafe;
   final VoidCallback? onTap;
   final VoidCallback? onSaved;
+  final bool? isSaved;
   final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
+    final saved = isSaved ?? cafe.isSaved;
+
     return Column(
       children: [
         InkWell(
@@ -32,9 +36,7 @@ class CafeListItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _CafeThumbnail(imagePath: cafe.imagePath),
-
                 const SizedBox(width: 14),
-
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,9 +49,7 @@ class CafeListItem extends StatelessWidget {
                           color: AppColors.textPrimary,
                         ),
                       ),
-
                       const SizedBox(height: 4),
-
                       Text(
                         cafe.category,
                         maxLines: 1,
@@ -58,9 +58,7 @@ class CafeListItem extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                       ),
-
                       const SizedBox(height: 9),
-
                       Row(
                         children: [
                           const Icon(
@@ -76,9 +74,7 @@ class CafeListItem extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           Container(
                             width: 3,
                             height: 3,
@@ -87,9 +83,7 @@ class CafeListItem extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                           ),
-
                           const SizedBox(width: 10),
-
                           Text(
                             cafe.distance,
                             style: AppTypography.tiny.copyWith(
@@ -98,34 +92,27 @@ class CafeListItem extends StatelessWidget {
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 7),
-
                       LiveStatusBadge(status: cafe.liveStatus),
                     ],
                   ),
                 ),
-
                 const SizedBox(width: 8),
-
                 IconButton(
                   onPressed: onSaved,
                   visualDensity: VisualDensity.compact,
                   icon: Icon(
-                    cafe.isSaved
+                    saved
                         ? Icons.favorite_rounded
                         : Icons.favorite_border_rounded,
                     size: 20,
-                    color: cafe.isSaved
-                        ? AppColors.espresso
-                        : AppColors.textTertiary,
+                    color: saved ? AppColors.espresso : AppColors.textTertiary,
                   ),
                 ),
               ],
             ),
           ),
         ),
-
         if (showDivider)
           const Divider(height: 1, thickness: 1, color: AppColors.divider),
       ],

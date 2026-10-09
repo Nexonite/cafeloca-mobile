@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/cafeloca_brand.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/presentation/widgets/auth_guest_state.dart';
+import '../../../cafe/presentation/providers/cafe_providers.dart';
+import '../../../cafe/presentation/widgets/cafe_list_item.dart';
+import '../providers/saved_cafes_provider.dart';
 
-class SavedPage extends StatelessWidget {
+class SavedPage extends ConsumerWidget {
   const SavedPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final savedCafeIds = ref.watch(savedCafesProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -19,30 +30,108 @@ class SavedPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const CafelocaBrand(size: CafelocaBrandSize.small),
-
               const SizedBox(height: 32),
-
               Text(
                 'Saved',
                 style: AppTypography.heading1.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Places you want to come back to.',
                 style: AppTypography.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
-
-              const Expanded(child: Center(child: _EmptySavedState())),
+              Expanded(
+                child: authState.isGuest
+                    ? const AuthGuestState(
+                        icon: Icons.favorite_border_rounded,
+                        title: 'Keep your favorite places',
+                        description: 'Sign in to save cafés you love and find them again anytime.',
+                      )
+                    : _SavedContent(savedCafeIds: savedCafeIds),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SavedContent extends ConsumerWidget {
+  const _SavedContent({required this.savedCafeIds});
+
+  final Set<String> savedCafeIds;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (savedCafeIds.isEmpty) {
+      return const _EmptySavedState();
+    }
+
+    final cafesAsync = ref.watch(cafesProvider);
+
+    return cafesAsync.when(
+      data: (allCafes) {
+        final savedCafes = allCafes
+            .where((cafe) => savedCafeIds.contains(cafe.id))
+            .toList();
+
+        if (savedCafes.isEmpty) {
+          return const _EmptySavedState();
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(top: 24),
+          itemCount: savedCafes.length,
+          itemBuilder: (context, index) {
+            final cafe = savedCafes[index];
+
+            return CafeListItem(
+              cafe: cafe,
+              isSaved: true,
+              showDivider: index != savedCafes.length - 1,
+              onTap: () {
+                context.push(AppRoutes.cafeDetailPath(cafe.id));
+              },
+              onSaved: () {
+                ref.read(savedCafesProvider.notifier).toggle(cafe.id);
+              },
+            );
+          },
+        );
+      },
+      loading: () {
+        return const Center(
+          child: CircularProgressIndicator(color: AppColors.espresso),
+        );
+      },
+      error: (error, stackTrace) {
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Could not load saved cafés',
+                textAlign: TextAlign.center,
+                style: AppTypography.title.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () {
+                  ref.invalidate(cafesProvider);
+                },
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -52,39 +141,43 @@ class _EmptySavedState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Icon(
-            Icons.favorite_border_rounded,
-            size: 25,
-            color: AppColors.textSecondary,
-          ),
+    return Center(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.border),
+              ),
+              child: const Icon(
+                Icons.favorite_border_rounded,
+                size: 25,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              'Nothing saved yet',
+              textAlign: TextAlign.center,
+              style: AppTypography.title.copyWith(color: AppColors.textPrimary),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              'Save cafés you would like to visit.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
         ),
-
-        const SizedBox(height: 18),
-
-        Text(
-          'Nothing saved yet',
-          style: AppTypography.title.copyWith(color: AppColors.textPrimary),
-        ),
-
-        const SizedBox(height: 7),
-
-        Text(
-          'Save cafés you would like to visit.',
-          textAlign: TextAlign.center,
-          style: AppTypography.body.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
+      ),
     );
   }
 }

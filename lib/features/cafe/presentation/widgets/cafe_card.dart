@@ -6,11 +6,18 @@ import '../../domain/models/cafe_summary.dart';
 import 'live_status_badge.dart';
 
 class CafeCard extends StatelessWidget {
-  const CafeCard({super.key, required this.cafe, this.onTap, this.onSaved});
+  const CafeCard({
+    super.key,
+    required this.cafe,
+    this.onTap,
+    this.onSaved,
+    this.isSaved,
+  });
 
   final CafeSummary cafe;
   final VoidCallback? onTap;
   final VoidCallback? onSaved;
+  final bool? isSaved;
 
   @override
   Widget build(BuildContext context) {
@@ -24,12 +31,10 @@ class CafeCard extends StatelessWidget {
           children: [
             _CafeImage(
               imagePath: cafe.imagePath,
-              isSaved: cafe.isSaved,
+              isSaved: isSaved ?? cafe.isSaved,
               onSaved: onSaved,
             ),
-
             const SizedBox(height: 12),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -47,9 +52,7 @@ class CafeCard extends StatelessWidget {
                 _Rating(rating: cafe.rating),
               ],
             ),
-
             const SizedBox(height: 5),
-
             Text(
               cafe.category,
               maxLines: 1,
@@ -58,9 +61,7 @@ class CafeCard extends StatelessWidget {
                 color: AppColors.textSecondary,
               ),
             ),
-
             const SizedBox(height: 9),
-
             Row(
               children: [
                 const Icon(
@@ -127,7 +128,6 @@ class _CafeImage extends StatelessWidget {
                   color: AppColors.textTertiary,
                 ),
               ),
-
             Positioned(
               top: 10,
               right: 10,

@@ -2,6 +2,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/register_page.dart';
+import '../../features/auth/presentation/providers/auth_route_refresh.dart';
+import '../../features/auth/presentation/utils/auth_navigation.dart';
 import '../../features/booking/domain/models/booking.dart';
 import '../../features/booking/presentation/pages/booking_page.dart';
 import '../../features/booking/presentation/pages/booking_success_page.dart';
@@ -14,6 +16,27 @@ import 'app_routes.dart';
 abstract final class AppRouter {
   static final GoRouter router = GoRouter(
     initialLocation: AppRoutes.splash,
+    refreshListenable: AuthRouteRefresh.instance,
+    redirect: (context, state) {
+      final authenticated = AuthRouteRefresh.instance.isAuthenticated;
+
+      final path = state.uri.path;
+
+      final bookingPattern = RegExp(r'^/cafe/[^/]+/booking$');
+
+      final bookingSuccessPattern = RegExp(r'^/cafe/[^/]+/booking/success$');
+
+      final isProtected =
+          bookingPattern.hasMatch(path) || bookingSuccessPattern.hasMatch(path);
+
+      if (!authenticated && isProtected) {
+        return AuthNavigation.loginPath(
+          from: bookingPattern.hasMatch(path) ? state.uri.toString() : null,
+        );
+      }
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: AppRoutes.splash,
@@ -25,11 +48,13 @@ abstract final class AppRouter {
       ),
       GoRoute(
         path: AppRoutes.login,
-        builder: (context, state) => const LoginPage(),
+        builder: (context, state) =>
+            LoginPage(from: state.uri.queryParameters['from']),
       ),
       GoRoute(
         path: AppRoutes.register,
-        builder: (context, state) => const RegisterPage(),
+        builder: (context, state) =>
+            RegisterPage(from: state.uri.queryParameters['from']),
       ),
       GoRoute(
         path: AppRoutes.home,
