@@ -5,6 +5,8 @@ abstract final class AppRoutes {
   static const String register = '/register';
   static const String home = '/home';
 
+  static const String myBookings = '/my-bookings';
+
   static const String cafeDetail = '/cafe/:id';
   static const String booking = '/cafe/:id/booking';
   static const String bookingSuccess = '/cafe/:id/booking/success';

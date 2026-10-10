@@ -7,6 +7,7 @@ import '../../features/auth/presentation/utils/auth_navigation.dart';
 import '../../features/booking/domain/models/booking.dart';
 import '../../features/booking/presentation/pages/booking_page.dart';
 import '../../features/booking/presentation/pages/booking_success_page.dart';
+import '../../features/booking/presentation/pages/my_bookings_page.dart';
 import '../../features/cafe/presentation/pages/cafe_detail_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/welcome/presentation/pages/welcome_page.dart';
@@ -28,12 +29,15 @@ abstract final class AppRouter {
 
       final isBookingRoute = bookingPattern.hasMatch(path);
 
-      final isProtected =
-          isBookingRoute || bookingSuccessPattern.hasMatch(path);
+      final isBookingSuccess = bookingSuccessPattern.hasMatch(path);
+
+      final isMyBookings = path == AppRoutes.myBookings;
+
+      final isProtected = isBookingRoute || isBookingSuccess || isMyBookings;
 
       if (!isAuthenticated && isProtected) {
         return AuthNavigation.loginPath(
-          from: isBookingRoute ? state.uri.toString() : null,
+          from: isBookingRoute || isMyBookings ? state.uri.toString() : null,
         );
       }
 
@@ -63,6 +67,10 @@ abstract final class AppRouter {
         builder: (context, state) => const MainShell(),
       ),
       GoRoute(
+        path: AppRoutes.myBookings,
+        builder: (context, state) => const MyBookingsPage(),
+      ),
+      GoRoute(
         path: AppRoutes.cafeDetail,
         builder: (context, state) {
           final cafeId = state.pathParameters['id'] ?? '';
@@ -82,7 +90,6 @@ abstract final class AppRouter {
         path: AppRoutes.bookingSuccess,
         builder: (context, state) {
           final cafeId = state.pathParameters['id'] ?? '';
-
           final extra = state.extra;
 
           if (extra is! Booking) {

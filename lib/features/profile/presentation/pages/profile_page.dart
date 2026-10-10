@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/providers/supabase_provider.dart';
@@ -9,6 +11,7 @@ import '../../../../core/widgets/cafeloca_brand.dart';
 import '../../../../core/widgets/cafeloca_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/widgets/auth_guest_state.dart';
+import '../../../booking/presentation/providers/booking_history_provider.dart';
 import '../providers/profile_provider.dart';
 
 class ProfilePage extends ConsumerWidget {
@@ -84,12 +87,14 @@ class _ProfileContent extends ConsumerWidget {
     return profileAsync.when(
       loading: () => _AuthenticatedProfile(
         key: ValueKey(userId),
+        userId: userId,
         name: fallbackName,
         email: email,
         isProfileLoading: true,
       ),
       error: (_, _) => _AuthenticatedProfile(
         key: ValueKey(userId),
+        userId: userId,
         name: fallbackName,
         email: email,
         hasProfileError: true,
@@ -107,6 +112,7 @@ class _ProfileContent extends ConsumerWidget {
 
         return _AuthenticatedProfile(
           key: ValueKey(userId),
+          userId: userId,
           name: displayName,
           email: email,
         );
@@ -118,6 +124,7 @@ class _ProfileContent extends ConsumerWidget {
 class _AuthenticatedProfile extends ConsumerStatefulWidget {
   const _AuthenticatedProfile({
     super.key,
+    required this.userId,
     required this.name,
     required this.email,
     this.isProfileLoading = false,
@@ -125,6 +132,7 @@ class _AuthenticatedProfile extends ConsumerStatefulWidget {
     this.onRetry,
   });
 
+  final String userId;
   final String? name;
   final String? email;
   final bool isProfileLoading;
@@ -150,6 +158,7 @@ class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
       await ref.read(authProvider.notifier).signOut();
 
       ref.invalidate(userProfileProvider);
+      ref.invalidate(myBookingsProvider);
     } on AuthException catch (error) {
       if (!mounted) return;
 
@@ -234,10 +243,7 @@ class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
             ),
             if (widget.isProfileLoading) ...[
               const SizedBox(height: 16),
-              const Text(
-                'Syncing your profile...',
-                textAlign: TextAlign.center,
-              ),
+              const Text('Syncing your profile...'),
               const SizedBox(height: 12),
               const CircularProgressIndicator(),
             ],
@@ -255,7 +261,53 @@ class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
                 child: const Text('Try again'),
               ),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
+            Material(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                onTap: () {
+                  ref.invalidate(myBookingsProvider(widget.userId));
+
+                  context.push(AppRoutes.myBookings);
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 18,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.event_note_rounded,
+                        color: AppColors.espresso,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'My Bookings',
+                          style: AppTypography.body.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             SizedBox(
               width: 220,
               child: AbsorbPointer(
