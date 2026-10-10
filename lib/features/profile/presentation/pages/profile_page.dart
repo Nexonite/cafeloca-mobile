@@ -4,10 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/providers/supabase_provider.dart';
 import '../../../../core/widgets/cafeloca_brand.dart';
 import '../../../../core/widgets/cafeloca_button.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../auth/presentation/widgets/auth_guest_state.dart';
+import '../providers/profile_provider.dart';
 
 class ProfilePage extends ConsumerWidget {
   const ProfilePage({super.key});
@@ -49,8 +51,8 @@ class ProfilePage extends ConsumerWidget {
                             'Sign in to save cafés, write reviews, '
                             'and manage your bookings.',
                       )
-                    : _AuthenticatedProfile(
-                        name: authState.name,
+                    : _ProfileContent(
+                        fallbackName: authState.name,
                         email: authState.email,
                       ),
               ),
@@ -62,11 +64,72 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
+class _ProfileContent extends ConsumerWidget {
+  const _ProfileContent({required this.fallbackName, required this.email});
+
+  final String? fallbackName;
+  final String? email;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final client = ref.watch(supabaseClientProvider);
+    final userId = client.auth.currentUser?.id;
+
+    if (userId == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final profileAsync = ref.watch(userProfileProvider(userId));
+
+    return profileAsync.when(
+      loading: () => _AuthenticatedProfile(
+        key: ValueKey(userId),
+        name: fallbackName,
+        email: email,
+        isProfileLoading: true,
+      ),
+      error: (_, _) => _AuthenticatedProfile(
+        key: ValueKey(userId),
+        name: fallbackName,
+        email: email,
+        hasProfileError: true,
+        onRetry: () {
+          ref.invalidate(userProfileProvider(userId));
+        },
+      ),
+      data: (profile) {
+        final databaseName = profile.fullName;
+
+        final displayName =
+            databaseName != null && databaseName.trim().isNotEmpty
+            ? databaseName
+            : fallbackName;
+
+        return _AuthenticatedProfile(
+          key: ValueKey(userId),
+          name: displayName,
+          email: email,
+        );
+      },
+    );
+  }
+}
+
 class _AuthenticatedProfile extends ConsumerStatefulWidget {
-  const _AuthenticatedProfile({required this.name, required this.email});
+  const _AuthenticatedProfile({
+    super.key,
+    required this.name,
+    required this.email,
+    this.isProfileLoading = false,
+    this.hasProfileError = false,
+    this.onRetry,
+  });
 
   final String? name;
   final String? email;
+  final bool isProfileLoading;
+  final bool hasProfileError;
+  final VoidCallback? onRetry;
 
   @override
   ConsumerState<_AuthenticatedProfile> createState() =>
@@ -85,6 +148,8 @@ class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
 
     try {
       await ref.read(authProvider.notifier).signOut();
+
+      ref.invalidate(userProfileProvider);
     } on AuthException catch (error) {
       if (!mounted) return;
 
@@ -110,8 +175,10 @@ class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = widget.name != null && widget.name!.trim().isNotEmpty
-        ? widget.name!
+    final name = widget.name;
+
+    final displayName = name != null && name.trim().isNotEmpty
+        ? name
         : 'Cafeloca Explorer';
 
     return Center(
@@ -165,6 +232,29 @@ class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
                 ),
               ),
             ),
+            if (widget.isProfileLoading) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Syncing your profile...',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              const CircularProgressIndicator(),
+            ],
+            if (widget.hasProfileError) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Your profile could not be synced.',
+                textAlign: TextAlign.center,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              TextButton(
+                onPressed: widget.onRetry,
+                child: const Text('Try again'),
+              ),
+            ],
             const SizedBox(height: 32),
             SizedBox(
               width: 220,

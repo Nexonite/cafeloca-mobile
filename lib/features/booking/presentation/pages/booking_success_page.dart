@@ -38,7 +38,6 @@ class BookingSuccessPage extends StatelessWidget {
           child: Column(
             children: [
               const Spacer(),
-
               Container(
                 width: 76,
                 height: 76,
@@ -53,29 +52,44 @@ class BookingSuccessPage extends StatelessWidget {
                   color: AppColors.surface,
                 ),
               ),
-
               const SizedBox(height: 26),
-
               Text(
-                'Table booked.',
+                'Booking request sent.',
                 textAlign: TextAlign.center,
                 style: AppTypography.heading1.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
-
               const SizedBox(height: 9),
-
               Text(
-                'Your table at ${booking.cafeName} has been reserved.',
+                'Your booking request at '
+                '${booking.cafeName} has been received. '
+                'Confirmation is still pending.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
-
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  booking.status.name.toUpperCase(),
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.espresso,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
               const SizedBox(height: 30),
-
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(18),
@@ -86,38 +100,40 @@ class BookingSuccessPage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
+                    if (booking.id != null) ...[
+                      _SuccessInfoRow(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Booking ID: ${booking.id}',
+                      ),
+                      const _InfoDivider(),
+                    ],
                     _SuccessInfoRow(
                       icon: Icons.calendar_today_outlined,
                       label:
-                          '${booking.date.day} ${_months[booking.date.month - 1]} ${booking.date.year}',
+                          '${booking.date.day} '
+                          '${_months[booking.date.month - 1]} '
+                          '${booking.date.year}',
                     ),
-
                     const _InfoDivider(),
-
                     _SuccessInfoRow(
                       icon: Icons.schedule_outlined,
                       label: booking.time,
                     ),
-
                     const _InfoDivider(),
-
                     _SuccessInfoRow(
                       icon: Icons.people_outline_rounded,
                       label:
-                          '${booking.guestCount} ${booking.guestCount == 1 ? 'guest' : 'guests'}',
+                          '${booking.guestCount} '
+                          '${booking.guestCount == 1 ? 'guest' : 'guests'}',
                     ),
-
                     if (notes != null && notes.isNotEmpty) ...[
                       const _InfoDivider(),
-
                       _SuccessInfoRow(icon: Icons.notes_rounded, label: notes),
                     ],
                   ],
                 ),
               ),
-
               const Spacer(),
-
               SizedBox(
                 width: double.infinity,
                 height: 52,
@@ -141,9 +157,7 @@ class BookingSuccessPage extends StatelessWidget {
                   ),
                 ),
               ),
-
               const SizedBox(height: 10),
-
               TextButton(
                 onPressed: () {
                   context.go(AppRoutes.cafeDetailPath(booking.cafeId));
@@ -175,9 +189,7 @@ class _SuccessInfoRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, size: 19, color: AppColors.textSecondary),
-
         const SizedBox(width: 12),
-
         Expanded(
           child: Text(
             label,

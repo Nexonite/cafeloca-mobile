@@ -11,6 +11,7 @@ import '../../../auth/presentation/widgets/auth_guest_state.dart';
 import '../../../cafe/presentation/providers/cafe_providers.dart';
 import '../../../cafe/presentation/widgets/cafe_list_item.dart';
 import '../providers/saved_cafes_provider.dart';
+import '../utils/favorite_action.dart';
 
 class SavedPage extends ConsumerWidget {
   const SavedPage({super.key});
@@ -19,6 +20,7 @@ class SavedPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
     final savedCafeIds = ref.watch(savedCafesProvider);
+    final syncState = ref.watch(savedSyncProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -49,9 +51,14 @@ class SavedPage extends ConsumerWidget {
                     ? const AuthGuestState(
                         icon: Icons.favorite_border_rounded,
                         title: 'Keep your favorite places',
-                        description: 'Sign in to save cafés you love and find them again anytime.',
+                        description:
+                            'Sign in to save cafés you love '
+                            'and find them again anytime.',
                       )
-                    : _SavedContent(savedCafeIds: savedCafeIds),
+                    : _SavedContent(
+                        savedCafeIds: savedCafeIds,
+                        syncState: syncState,
+                      ),
               ),
             ],
           ),
@@ -62,12 +69,28 @@ class SavedPage extends ConsumerWidget {
 }
 
 class _SavedContent extends ConsumerWidget {
-  const _SavedContent({required this.savedCafeIds});
+  const _SavedContent({required this.savedCafeIds, required this.syncState});
 
   final Set<String> savedCafeIds;
+  final SavedSyncState syncState;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (syncState.status == SavedSyncStatus.idle || syncState.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.espresso),
+      );
+    }
+
+    if (syncState.status == SavedSyncStatus.error) {
+      return _SavedErrorState(
+        message: syncState.message ?? 'Could not load your saved cafés.',
+        onRetry: () {
+          ref.read(savedCafesProvider.notifier).load();
+        },
+      );
+    }
+
     if (savedCafeIds.isEmpty) {
       return const _EmptySavedState();
     }
@@ -90,6 +113,8 @@ class _SavedContent extends ConsumerWidget {
           itemBuilder: (context, index) {
             final cafe = savedCafes[index];
 
+            final isPending = syncState.pendingIds.contains(cafe.id);
+
             return CafeListItem(
               cafe: cafe,
               isSaved: true,
@@ -97,41 +122,53 @@ class _SavedContent extends ConsumerWidget {
               onTap: () {
                 context.push(AppRoutes.cafeDetailPath(cafe.id));
               },
-              onSaved: () {
-                ref.read(savedCafesProvider.notifier).toggle(cafe.id);
-              },
+              onSaved: isPending
+                  ? null
+                  : () {
+                      FavoriteAction.toggle(
+                        context: context,
+                        ref: ref,
+                        cafeId: cafe.id,
+                      );
+                    },
             );
           },
         );
       },
-      loading: () {
-        return const Center(
-          child: CircularProgressIndicator(color: AppColors.espresso),
-        );
-      },
-      error: (error, stackTrace) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Could not load saved cafés',
-                textAlign: TextAlign.center,
-                style: AppTypography.title.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () {
-                  ref.invalidate(cafesProvider);
-                },
-                child: const Text('Try again'),
-              ),
-            ],
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.espresso),
+      ),
+      error: (_, _) => _SavedErrorState(
+        message: 'Could not load saved cafés.',
+        onRetry: () {
+          ref.invalidate(cafesProvider);
+        },
+      ),
+    );
+  }
+}
+
+class _SavedErrorState extends StatelessWidget {
+  const _SavedErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: AppTypography.title.copyWith(color: AppColors.textPrimary),
           ),
-        );
-      },
+          const SizedBox(height: 12),
+          TextButton(onPressed: onRetry, child: const Text('Try again')),
+        ],
+      ),
     );
   }
 }
@@ -145,7 +182,6 @@ class _EmptySavedState extends StatelessWidget {
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 64,
