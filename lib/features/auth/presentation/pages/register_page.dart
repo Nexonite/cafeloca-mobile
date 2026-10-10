@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -29,6 +30,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -39,28 +41,92 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
-  void _register() {
+  Future<void> _register() async {
+    if (_isLoading) return;
+
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final destination = AuthNavigation.destinationAfterAuth(widget.from);
+    setState(() {
+      _isLoading = true;
+    });
 
-    ref
-        .read(authProvider.notifier)
-        .register(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
+    try {
+      final hasSession = await ref
+          .read(authProvider.notifier)
+          .register(
+            name: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+
+      if (!mounted) return;
+
+      if (hasSession) {
+        final destination = AuthNavigation.destinationAfterAuth(widget.from);
+
+        context.go(destination);
+      } else {
+        await _showEmailConfirmationDialog();
+
+        if (!mounted) return;
+
+        context.go(AuthNavigation.loginPath(from: widget.from));
+      }
+    } on AuthException catch (error) {
+      if (!mounted) return;
+
+      _showMessage(error.message);
+    } catch (_) {
+      if (!mounted) return;
+
+      _showMessage('Unable to create your account. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showEmailConfirmationDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Check your email'),
+          content: Text(
+            'We sent a confirmation link to '
+            '${_emailController.text.trim()}.\n\n'
+            'Verify your email before signing in.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Got it'),
+            ),
+          ],
         );
+      },
+    );
+  }
 
-    if (!mounted) return;
-
-    context.go(destination);
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _openLogin() {
+    if (_isLoading) return;
+
     if (context.canPop()) {
       context.pop();
     } else {
@@ -127,7 +193,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Enter your name';
                           }
-
                           return null;
                         },
                       ),
@@ -208,10 +273,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         },
                       ),
                       const SizedBox(height: 32),
-                      CafelocaButton(
-                        label: 'Create account',
-                        onPressed: _register,
+                      AbsorbPointer(
+                        absorbing: _isLoading,
+                        child: CafelocaButton(
+                          label: _isLoading
+                              ? 'Creating account...'
+                              : 'Create account',
+                          onPressed: _register,
+                        ),
                       ),
+                      if (_isLoading) ...[
+                        const SizedBox(height: 16),
+                        const Center(child: CircularProgressIndicator()),
+                      ],
                       const SizedBox(height: 28),
                       Center(
                         child: Wrap(

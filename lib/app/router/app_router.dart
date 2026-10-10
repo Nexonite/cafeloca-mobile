@@ -18,7 +18,7 @@ abstract final class AppRouter {
     initialLocation: AppRoutes.splash,
     refreshListenable: AuthRouteRefresh.instance,
     redirect: (context, state) {
-      final authenticated = AuthRouteRefresh.instance.isAuthenticated;
+      final isAuthenticated = AuthRouteRefresh.instance.isAuthenticated;
 
       final path = state.uri.path;
 
@@ -26,12 +26,14 @@ abstract final class AppRouter {
 
       final bookingSuccessPattern = RegExp(r'^/cafe/[^/]+/booking/success$');
 
-      final isProtected =
-          bookingPattern.hasMatch(path) || bookingSuccessPattern.hasMatch(path);
+      final isBookingRoute = bookingPattern.hasMatch(path);
 
-      if (!authenticated && isProtected) {
+      final isProtected =
+          isBookingRoute || bookingSuccessPattern.hasMatch(path);
+
+      if (!isAuthenticated && isProtected) {
         return AuthNavigation.loginPath(
-          from: bookingPattern.hasMatch(path) ? state.uri.toString() : null,
+          from: isBookingRoute ? state.uri.toString() : null,
         );
       }
 
@@ -80,6 +82,7 @@ abstract final class AppRouter {
         path: AppRoutes.bookingSuccess,
         builder: (context, state) {
           final cafeId = state.pathParameters['id'] ?? '';
+
           final extra = state.extra;
 
           if (extra is! Booking) {

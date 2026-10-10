@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/router/app_routes.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -27,6 +28,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -35,27 +37,66 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
+    if (_isLoading) return;
+
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    final destination = AuthNavigation.destinationAfterAuth(widget.from);
+    setState(() {
+      _isLoading = true;
+    });
 
-    ref.read(authProvider.notifier).signIn(email: _emailController.text.trim());
+    try {
+      await ref
+          .read(authProvider.notifier)
+          .signIn(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    context.go(destination);
+      final destination = AuthNavigation.destinationAfterAuth(widget.from);
+
+      context.go(destination);
+    } on AuthException catch (error) {
+      if (!mounted) return;
+
+      _showMessage(error.message);
+    } catch (_) {
+      if (!mounted) return;
+
+      _showMessage(
+        'Unable to sign in. Please check your connection and try again.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _openRegister() {
+    if (_isLoading) return;
+
     context.push(AuthNavigation.registerPath(from: widget.from));
   }
 
   void _goBack() {
+    if (_isLoading) return;
+
     if (context.canPop()) {
       context.pop();
     } else {
@@ -145,9 +186,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {
-                            // TODO: Forgot password.
-                          },
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                                  _showMessage(
+                                    'Password reset will be available soon.',
+                                  );
+                                },
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.textPrimary,
                           ),
@@ -160,7 +205,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      CafelocaButton(label: 'Sign in', onPressed: _login),
+                      AbsorbPointer(
+                        absorbing: _isLoading,
+                        child: CafelocaButton(
+                          label: _isLoading ? 'Signing in...' : 'Sign in',
+                          onPressed: _login,
+                        ),
+                      ),
+                      if (_isLoading) ...[
+                        const SizedBox(height: 16),
+                        const Center(child: CircularProgressIndicator()),
+                      ],
                       const SizedBox(height: 28),
                       Center(
                         child: Wrap(

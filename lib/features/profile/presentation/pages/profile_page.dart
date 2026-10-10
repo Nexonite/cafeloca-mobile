@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -25,38 +26,32 @@ class ProfilePage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const CafelocaBrand(size: CafelocaBrandSize.small),
-
               const SizedBox(height: 32),
-
               Text(
                 'Profile',
                 style: AppTypography.heading1.copyWith(
                   color: AppColors.textPrimary,
                 ),
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Your Cafeloca account and activity.',
                 style: AppTypography.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
-
               Expanded(
                 child: authState.isGuest
                     ? const AuthGuestState(
                         icon: Icons.person_outline_rounded,
                         title: 'You’re exploring as a guest',
-                        description: 'Sign in to save cafés, write reviews, and manage your bookings.',
+                        description:
+                            'Sign in to save cafés, write reviews, '
+                            'and manage your bookings.',
                       )
                     : _AuthenticatedProfile(
                         name: authState.name,
                         email: authState.email,
-                        onSignOut: () {
-                          ref.read(authProvider.notifier).signOut();
-                        },
                       ),
               ),
             ],
@@ -67,21 +62,56 @@ class ProfilePage extends ConsumerWidget {
   }
 }
 
-class _AuthenticatedProfile extends StatelessWidget {
-  const _AuthenticatedProfile({
-    required this.name,
-    required this.email,
-    required this.onSignOut,
-  });
+class _AuthenticatedProfile extends ConsumerStatefulWidget {
+  const _AuthenticatedProfile({required this.name, required this.email});
 
   final String? name;
   final String? email;
-  final VoidCallback onSignOut;
+
+  @override
+  ConsumerState<_AuthenticatedProfile> createState() =>
+      _AuthenticatedProfileState();
+}
+
+class _AuthenticatedProfileState extends ConsumerState<_AuthenticatedProfile> {
+  bool _isSigningOut = false;
+
+  Future<void> _signOut() async {
+    if (_isSigningOut) return;
+
+    setState(() {
+      _isSigningOut = true;
+    });
+
+    try {
+      await ref.read(authProvider.notifier).signOut();
+    } on AuthException catch (error) {
+      if (!mounted) return;
+
+      _showError(error.message);
+    } catch (_) {
+      if (!mounted) return;
+
+      _showError('Unable to sign out. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSigningOut = false;
+        });
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final displayName = name != null && name!.trim().isNotEmpty
-        ? name!
+    final displayName = widget.name != null && widget.name!.trim().isNotEmpty
+        ? widget.name!
         : 'Cafeloca Explorer';
 
     return Center(
@@ -103,28 +133,23 @@ class _AuthenticatedProfile extends StatelessWidget {
                 color: AppColors.espresso,
               ),
             ),
-
             const SizedBox(height: 20),
-
             Text(
               displayName,
               textAlign: TextAlign.center,
               style: AppTypography.title.copyWith(color: AppColors.textPrimary),
             ),
-
-            if (email != null && email!.isNotEmpty) ...[
+            if (widget.email != null && widget.email!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                email!,
+                widget.email!,
                 textAlign: TextAlign.center,
                 style: AppTypography.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
             ],
-
             const SizedBox(height: 14),
-
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
@@ -140,13 +165,21 @@ class _AuthenticatedProfile extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 32),
-
             SizedBox(
               width: 220,
-              child: CafelocaButton(label: 'Sign out', onPressed: onSignOut),
+              child: AbsorbPointer(
+                absorbing: _isSigningOut,
+                child: CafelocaButton(
+                  label: _isSigningOut ? 'Signing out...' : 'Sign out',
+                  onPressed: _signOut,
+                ),
+              ),
             ),
+            if (_isSigningOut) ...[
+              const SizedBox(height: 16),
+              const CircularProgressIndicator(),
+            ],
           ],
         ),
       ),
