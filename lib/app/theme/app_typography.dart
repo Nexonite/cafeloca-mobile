@@ -5,26 +5,26 @@ abstract final class AppTypography {
 
   static const TextStyle display = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 28,
-    fontWeight: FontWeight.w600,
-    height: 1.2,
-    letterSpacing: -0.7,
+    fontSize: 30,
+    fontWeight: FontWeight.w700,
+    height: 1.17,
+    letterSpacing: -1.0,
   );
 
   static const TextStyle heading1 = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 24,
-    fontWeight: FontWeight.w600,
-    height: 1.25,
-    letterSpacing: -0.5,
+    fontSize: 25,
+    fontWeight: FontWeight.w700,
+    height: 1.24,
+    letterSpacing: -0.7,
   );
 
   static const TextStyle heading2 = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: FontWeight.w600,
-    height: 1.35,
-    letterSpacing: -0.2,
+    height: 1.32,
+    letterSpacing: -0.4,
   );
 
   static const TextStyle title = TextStyle(
@@ -32,6 +32,7 @@ abstract final class AppTypography {
     fontSize: 15,
     fontWeight: FontWeight.w600,
     height: 1.4,
+    letterSpacing: -0.15,
   );
 
   static const TextStyle body = TextStyle(
@@ -44,7 +45,7 @@ abstract final class AppTypography {
   static const TextStyle label = TextStyle(
     fontFamily: fontFamily,
     fontSize: 13,
-    fontWeight: FontWeight.w500,
+    fontWeight: FontWeight.w600,
     height: 1.4,
   );
 
@@ -52,13 +53,13 @@ abstract final class AppTypography {
     fontFamily: fontFamily,
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    height: 1.4,
+    height: 1.45,
   );
 
   static const TextStyle tiny = TextStyle(
     fontFamily: fontFamily,
     fontSize: 11,
     fontWeight: FontWeight.w400,
-    height: 1.35,
+    height: 1.4,
   );
 }

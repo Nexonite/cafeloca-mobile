@@ -5,6 +5,7 @@ import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/saved/presentation/pages/saved_page.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../theme/app_typography.dart';
 
 class MainShell extends StatefulWidget {
@@ -63,39 +64,47 @@ class _CafelocaNavigationBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 66,
-          child: Row(
-            children: [
-              _NavigationItem(
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home_rounded,
-                label: 'Home',
-                selected: currentIndex == 0,
-                onTap: () => onSelected(0),
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppSpacing.maxContentWidth,
+            ),
+            child: SizedBox(
+              height: 68,
+              child: Row(
+                children: [
+                  _NavigationItem(
+                    icon: Icons.home_outlined,
+                    selectedIcon: Icons.home_rounded,
+                    label: 'Home',
+                    selected: currentIndex == 0,
+                    onTap: () => onSelected(0),
+                  ),
+                  _NavigationItem(
+                    icon: Icons.search_rounded,
+                    selectedIcon: Icons.search_rounded,
+                    label: 'Explore',
+                    selected: currentIndex == 1,
+                    onTap: () => onSelected(1),
+                  ),
+                  _NavigationItem(
+                    icon: Icons.favorite_border_rounded,
+                    selectedIcon: Icons.favorite_rounded,
+                    label: 'Saved',
+                    selected: currentIndex == 2,
+                    onTap: () => onSelected(2),
+                  ),
+                  _NavigationItem(
+                    icon: Icons.person_outline_rounded,
+                    selectedIcon: Icons.person_rounded,
+                    label: 'Profile',
+                    selected: currentIndex == 3,
+                    onTap: () => onSelected(3),
+                  ),
+                ],
               ),
-              _NavigationItem(
-                icon: Icons.search_rounded,
-                selectedIcon: Icons.search_rounded,
-                label: 'Explore',
-                selected: currentIndex == 1,
-                onTap: () => onSelected(1),
-              ),
-              _NavigationItem(
-                icon: Icons.favorite_border_rounded,
-                selectedIcon: Icons.favorite_rounded,
-                label: 'Saved',
-                selected: currentIndex == 2,
-                onTap: () => onSelected(2),
-              ),
-              _NavigationItem(
-                icon: Icons.person_outline_rounded,
-                selectedIcon: Icons.person_rounded,
-                label: 'Profile',
-                selected: currentIndex == 3,
-                onTap: () => onSelected(3),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -134,27 +143,27 @@ class _NavigationItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  width: selected ? 16 : 0,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: AppColors.espresso,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 7),
                 Icon(selected ? selectedIcon : icon, size: 22, color: color),
-
-                const SizedBox(height: 4),
-
-                SizedBox(
-                  height: 15,
-                  child: AnimatedOpacity(
-                    opacity: selected ? 1 : 0,
-                    duration: const Duration(milliseconds: 160),
-                    curve: Curves.easeOut,
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.clip,
-                      style: AppTypography.tiny.copyWith(
-                        fontSize: 10,
-                        color: AppColors.espresso,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                    ),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.tiny.copyWith(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ],

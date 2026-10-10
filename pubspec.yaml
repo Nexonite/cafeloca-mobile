@@ -60,6 +60,7 @@ flutter:
   assets:
     - assets/images/branding/
     - assets/images/cafes/
+    - assets/images/welcome/
 
   fonts:
     - family: PlusJakartaSans
